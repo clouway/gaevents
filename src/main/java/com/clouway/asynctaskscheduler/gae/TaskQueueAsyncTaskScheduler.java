@@ -2,13 +2,13 @@ package com.clouway.asynctaskscheduler.gae;
 
 import com.clouway.asynctaskscheduler.spi.AsyncTaskOptions;
 import com.clouway.asynctaskscheduler.spi.AsyncTaskScheduler;
+import com.clouway.asynctaskscheduler.spi.EventTransport;
 import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
 import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.repackaged.com.google.common.base.Strings;
 import com.google.common.collect.Lists;
-import com.google.gson.Gson;
 import com.google.inject.Inject;
 
 import java.io.UnsupportedEncodingException;
@@ -55,13 +55,14 @@ public class TaskQueueAsyncTaskScheduler implements AsyncTaskScheduler {
   public static final String EVENT_AS_JSON = "eventJson";
 
   private List<AsyncTaskOptions> taskOptions;
-  private final Gson gson;
+
+  private final EventTransport eventTransport;
   private final CommonParamBinder commonParamBinder;
 
 
   @Inject
-  public TaskQueueAsyncTaskScheduler(Gson gson, CommonParamBinder commonParamBinder) {
-    this.gson = gson;
+  public TaskQueueAsyncTaskScheduler(EventTransport eventTransport, CommonParamBinder commonParamBinder) {
+    this.eventTransport = eventTransport;
     this.commonParamBinder = commonParamBinder;
     this.taskOptions = Lists.newArrayList();
   }
@@ -128,7 +129,7 @@ public class TaskQueueAsyncTaskScheduler implements AsyncTaskScheduler {
 
     //main task queue parameter
     task.param(EVENT, taskOptions.getEvent().getClass().getName());
-    String eventAsJson = gson.toJson(taskOptions.getEvent()).toString();
+    String eventAsJson = eventTransport.out(taskOptions.getEvent().getClass(), taskOptions.getEvent());
     try {
 
       String encodedEventAsJson = URLEncoder.encode(eventAsJson,"UTF-8");
