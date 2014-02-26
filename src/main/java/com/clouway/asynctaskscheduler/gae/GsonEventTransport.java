@@ -17,8 +17,8 @@ public class GsonEventTransport implements EventTransport {
   }
 
   @Override
-  public <T> T in(Class<T> eventClass, String source) {
-    return gson.fromJson(source, eventClass);
+  public <T> T in(Class<T> eventClass, String event) {
+    return gson.fromJson(event, eventClass);
   }
 
   @Override
