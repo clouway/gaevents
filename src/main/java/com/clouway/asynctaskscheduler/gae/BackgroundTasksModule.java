@@ -62,22 +62,11 @@ public class BackgroundTasksModule extends AbstractModule {
   @Override
   protected void configure() {
     install(servletsModule);
-    configureEventTransport();
+    bind(EventTransport.class).to(getEventTransport()).in(Singleton.class);
   }
 
-  /**
-   * Configure default {@link com.clouway.asynctaskscheduler.spi.EventTransport}
-   */
-  protected void configureEventTransport() {
-    bind(EventTransport.class).to(GsonEventTransport.class).in(Singleton.class);
-  }
-
-  /**
-   * Configure external {@link com.clouway.asynctaskscheduler.spi.EventTransport} to be used.
-   * @param eventTransport
-   */
-  protected final void bindEventTransport(Class<? extends EventTransport> eventTransport) {
-    bind(EventTransport.class).to(eventTransport).in(Singleton.class);
+  protected Class<? extends EventTransport> getEventTransport() {
+    return GsonEventTransport.class;
   }
 
   @Provides
