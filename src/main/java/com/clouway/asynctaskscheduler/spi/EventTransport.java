@@ -1,5 +1,8 @@
 package com.clouway.asynctaskscheduler.spi;
 
+import java.io.InputStream;
+import java.io.OutputStream;
+
 /**
  * EventTransport class is used to transport events that are passed between the client and the server.
  * By default the {@link com.clouway.asynctaskscheduler.spi.EventTransport} is bound
@@ -33,7 +36,7 @@ package com.clouway.asynctaskscheduler.spi;
  */
 public interface EventTransport {
 
-  <T> T in(Class<T> eventClass, String event);
+  <T> T in(Class<T> eventClass, InputStream inputStream);
 
-  String out(Class<?> eventClass, Object event);
+  <T> void out(Class<? extends T> eventClass, T event, OutputStream outputStream);
 }

@@ -4,6 +4,11 @@ import com.clouway.asynctaskscheduler.spi.EventTransport;
 import com.google.gson.Gson;
 import com.google.inject.Inject;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+
 /**
  * @author Ivan Lazov <ivan.lazov@clouway.com>
  */
@@ -17,12 +22,19 @@ public class GsonEventTransport implements EventTransport {
   }
 
   @Override
-  public <T> T in(Class<T> eventClass, String event) {
-    return gson.fromJson(event, eventClass);
+  public <T> T in(Class<T> eventClass, InputStream inputStream) {
+    return gson.fromJson(new InputStreamReader(inputStream), eventClass);
   }
 
   @Override
-  public String out(Class<?> eventClass, Object event) {
-    return gson.toJson(event, eventClass);
+  public <T> void out(Class<? extends T> eventClass, T event, OutputStream outputStream) {
+
+    String json = gson.toJson(event, eventClass);
+
+    try {
+      outputStream.write(json.getBytes());
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
   }
 }

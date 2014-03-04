@@ -1,5 +1,6 @@
 package com.clouway.asynctaskscheduler.gae;
 
+import com.clouway.asynctaskscheduler.spi.AsyncEvent;
 import com.clouway.asynctaskscheduler.spi.AsyncTaskOptions;
 import com.clouway.asynctaskscheduler.spi.AsyncTaskScheduler;
 import com.clouway.asynctaskscheduler.spi.EventTransport;
@@ -11,6 +12,8 @@ import com.google.appengine.repackaged.com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.HashMap;
@@ -129,7 +132,9 @@ public class TaskQueueAsyncTaskScheduler implements AsyncTaskScheduler {
 
     //main task queue parameter
     task.param(EVENT, taskOptions.getEvent().getClass().getName());
-    String eventAsJson = eventTransport.out(taskOptions.getEvent().getClass(), taskOptions.getEvent());
+
+    String eventAsJson = getAsyncEventAsJson(taskOptions.getEvent());
+
     try {
 
       String encodedEventAsJson = URLEncoder.encode(eventAsJson,"UTF-8");
@@ -143,6 +148,22 @@ public class TaskQueueAsyncTaskScheduler implements AsyncTaskScheduler {
     //adds all other parameters
     task = addParams(task, taskOptions.getParams());
     return task;
+  }
+
+  private String getAsyncEventAsJson(AsyncEvent event) {
+
+    ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+    eventTransport.out(event.getClass(), event, outputStream);
+
+    String eventAsJson = outputStream.toString();
+
+    try {
+      outputStream.close();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+    return eventAsJson;
   }
 
   /**
