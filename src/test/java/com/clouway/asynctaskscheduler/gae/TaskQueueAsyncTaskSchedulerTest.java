@@ -39,6 +39,7 @@ import static com.clouway.asynctaskscheduler.spi.AsyncTaskOptions.task;
 import static com.clouway.asynctaskscheduler.util.DateUtil.newDateAndTime;
 import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertFalse;
+import static junit.framework.Assert.fail;
 
 /**
  * @author Mihail Lesikov (mlesikov@gmail.com)
@@ -260,6 +261,7 @@ public class TaskQueueAsyncTaskSchedulerTest {
     QueueStateInfo qsi = getQueueStateInfo(QueueFactory.getDefaultQueue().getQueueName());
     assertNotContainsParams(qsi.getTaskInfo().get(0).getBody(), null);
     assertNotContainsParams(qsi.getTaskInfo().get(0).getBody(), "key");
+    fail();
   }
 
   @Test
