@@ -261,7 +261,6 @@ public class TaskQueueAsyncTaskSchedulerTest {
     QueueStateInfo qsi = getQueueStateInfo(QueueFactory.getDefaultQueue().getQueueName());
     assertNotContainsParams(qsi.getTaskInfo().get(0).getBody(), null);
     assertNotContainsParams(qsi.getTaskInfo().get(0).getBody(), "key");
-    fail();
   }
 
   @Test
