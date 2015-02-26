@@ -3,23 +3,34 @@ package com.clouway.asynctaskscheduler.gae;
 import com.clouway.asynctaskscheduler.common.ActionEvent;
 import com.clouway.asynctaskscheduler.common.ActionEventHandler;
 import com.clouway.asynctaskscheduler.common.IndexingListener;
+import com.clouway.asynctaskscheduler.common.TaskQueueParamParser;
 import com.clouway.asynctaskscheduler.common.TestEventListener;
 import com.clouway.asynctaskscheduler.spi.AsyncEvent;
 import com.clouway.asynctaskscheduler.spi.AsyncEventHandler;
 import com.clouway.asynctaskscheduler.spi.AsyncEventHandlerFactory;
 import com.clouway.asynctaskscheduler.spi.AsyncEventListener;
 import com.clouway.asynctaskscheduler.spi.AsyncEventListenersFactory;
+import com.google.appengine.api.taskqueue.QueueFactory;
+import com.google.appengine.api.taskqueue.dev.LocalTaskQueue;
+import com.google.appengine.api.taskqueue.dev.QueueStateInfo;
+import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
+import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.common.collect.Lists;
 import com.google.gson.Gson;
 import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.UnsupportedEncodingException;
 import java.util.List;
+import java.util.Map;
 
 import static junit.framework.Assert.assertEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.is;
 
 /**
  * @author Mihail Lesikov (mlesikov@gmail.com)
@@ -52,17 +63,15 @@ public class RoutingEventDispatcherTest {
   private ActionEvent event = new ActionEvent("test message");
   private String eventAsJson;
 
+  private LocalServiceTestHelper helper;
 
   @Before
   public void setUp() throws Exception {
+    LocalTaskQueueTestConfig localTaskQueueTestConfig = new LocalTaskQueueTestConfig();
+    localTaskQueueTestConfig.setQueueXmlPath("src/test/java/queue.xml");
+    helper = new LocalServiceTestHelper(localTaskQueueTestConfig);
+    helper.setUp();
     Injector injector = Guice.createInjector(new BackgroundTasksModule() {
-
-      @Override
-      public EventListenerBindingsBuilder bindEventAdditionalEventListeners() {
-        return EventListenerBindingsBuilder.binder().bind(ActionEvent.class, IndexingListener.class, TestEventListener.class);
-      }
-
-
       @Override
       public AsyncEventHandlerFactory getAsyncEventHandlerFactory(Injector injector) {
         return handlerFactory;
@@ -77,6 +86,11 @@ public class RoutingEventDispatcherTest {
 
     eventAsJson = gson.toJson(event);
 
+  }
+
+  @After
+  public void tearDown() throws Exception {
+    helper.tearDown();
   }
 
   @Test
@@ -114,8 +128,33 @@ public class RoutingEventDispatcherTest {
 
     dispatcher.dispatchAsyncEvent(eventClassAsString, eventAsJson);
 
+    QueueStateInfo qsi = getQueueStateInfo(QueueFactory.getDefaultQueue().getQueueName());
+
+    //two task queues fired because the event has 2 listeners
+    assertThat(qsi.getCountTasks(), is(2));
+    //each fired task queue contains the event class and the id of the listener to be executed
+    assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.EVENT, event.getClass().getCanonicalName());
+    assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.LISTENER_ID, "0");
+    assertParams(qsi.getTaskInfo().get(1).getBody(), TaskQueueAsyncTaskScheduler.LISTENER_ID, "1");
+  }
+
+  @Test
+  public void shouldDispatchEventListener() throws Exception {
+    //execute event listeners by their id, the id is received as task queue parameter
+    dispatcher.dispatchEventListener(eventClassAsString, eventAsJson, 0);
+    dispatcher.dispatchEventListener(eventClassAsString, eventAsJson, 1);
+
     assertEquals(event.getMessage(), ((ActionEvent) indexingListener.event).getMessage());
     assertEquals(event.getMessage(), ((ActionEvent) testEventListener.event).getMessage());
   }
 
+  private QueueStateInfo getQueueStateInfo(String queueName) {
+    LocalTaskQueue ltq = LocalTaskQueueTestConfig.getLocalTaskQueue();
+    return ltq.getQueueStateInfo().get(queueName);
+  }
+
+  private void assertParams(String taskQueueBody, String paramName, String paramValue) throws UnsupportedEncodingException {
+    Map<String, String> params = TaskQueueParamParser.parse(taskQueueBody);
+    assertEquals(params.get(paramName), paramValue);
+  }
 }

@@ -39,7 +39,6 @@ import static com.clouway.asynctaskscheduler.spi.AsyncTaskOptions.task;
 import static com.clouway.asynctaskscheduler.util.DateUtil.newDateAndTime;
 import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertFalse;
-import static junit.framework.Assert.fail;
 
 /**
  * @author Mihail Lesikov (mlesikov@gmail.com)
@@ -223,6 +222,19 @@ public class TaskQueueAsyncTaskSchedulerTest {
     QueueStateInfo qsi = getQueueStateInfo(QueueFactory.getDefaultQueue().getQueueName());
 
     assertParams(qsi.getTaskInfo().get(0).getBody(), paramName, paramValue);
+  }
+
+  @Test
+  public void shouldAddTaskToDefaultTaskQueueWhenTaskOptionsForEventListenerIsProvided() throws Exception {//////////////////////////test
+    ActionEvent event = new ActionEvent("test message");
+    Integer eventListenerId = 1;
+    taskScheduler.add(AsyncTaskOptions.event(event).eventListenerId(eventListenerId))
+            .now();
+
+    QueueStateInfo qsi = getQueueStateInfo(QueueFactory.getDefaultQueue().getQueueName());
+    assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.EVENT, event.getClass().getName());
+    assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.EVENT_AS_JSON, encode(gson.toJson(event)));
+    assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.LISTENER_ID, eventListenerId.toString());
   }
 
   @Test

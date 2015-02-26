@@ -55,6 +55,7 @@ public class TaskQueueAsyncTaskScheduler implements AsyncTaskScheduler {
   public static final String TASK_QUEUE = "taskQueue";
   public static final String EVENT = "event";
   public static final String EVENT_AS_JSON = "eventJson";
+  public static final String LISTENER_ID = "listenerId";
 
   private List<AsyncTaskOptions> taskOptions;
 
@@ -144,6 +145,10 @@ public class TaskQueueAsyncTaskScheduler implements AsyncTaskScheduler {
     } catch (UnsupportedEncodingException e) {
       e.printStackTrace();
       throw new RuntimeException(e);
+    }
+
+    if (taskOptions.getEventListenerId() != null){
+      task.param(LISTENER_ID, taskOptions.getEventListenerId().toString());
     }
 
     //adds all other parameters

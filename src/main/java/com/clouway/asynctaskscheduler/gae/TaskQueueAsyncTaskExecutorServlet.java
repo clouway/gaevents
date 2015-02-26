@@ -47,8 +47,15 @@ public class TaskQueueAsyncTaskExecutorServlet extends HttpServlet {
       String eventClassAsString = getParameter(request, TaskQueueAsyncTaskScheduler.EVENT);
       String eventAsJson = getParameter(request, TaskQueueAsyncTaskScheduler.EVENT_AS_JSON);
 
-      //if event is passed then it should be dispatched to it's handler
-      if (!Strings.isNullOrEmpty(eventClassAsString) && !Strings.isNullOrEmpty(eventAsJson)) {
+      //listener details
+      String listenerId = getParameter(request, TaskQueueAsyncTaskScheduler.LISTENER_ID);
+
+      //if event and a listenerID is passed the listener should be executed. This happens so every listener can be executed in different task queue
+      if (!Strings.isNullOrEmpty(listenerId) && !Strings.isNullOrEmpty(eventClassAsString) && !Strings.isNullOrEmpty(eventAsJson)) {
+
+        eventDispatcher.dispatchEventListener(eventClassAsString, eventAsJson, new Integer(listenerId));
+        //if event is passed then it should be dispatched to it's handler
+      } else if (!Strings.isNullOrEmpty(eventClassAsString) && !Strings.isNullOrEmpty(eventAsJson)) {
 
         eventDispatcher.dispatchAsyncEvent(eventClassAsString, eventAsJson);
 

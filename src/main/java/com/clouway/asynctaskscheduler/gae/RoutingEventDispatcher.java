@@ -1,13 +1,9 @@
 package com.clouway.asynctaskscheduler.gae;
 
-import com.clouway.asynctaskscheduler.spi.AsyncEvent;
-import com.clouway.asynctaskscheduler.spi.AsyncEventHandler;
-import com.clouway.asynctaskscheduler.spi.AsyncEventHandlerFactory;
-import com.clouway.asynctaskscheduler.spi.AsyncEventListener;
-import com.clouway.asynctaskscheduler.spi.AsyncEventListenersFactory;
-import com.clouway.asynctaskscheduler.spi.EventTransport;
+import com.clouway.asynctaskscheduler.spi.*;
 import com.google.common.base.Strings;
 import com.google.inject.Inject;
+import com.google.inject.Provider;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -24,14 +20,17 @@ public class RoutingEventDispatcher {
   private final EventTransport eventTransport;
   private final AsyncEventHandlerFactory handlerFactory;
   private final AsyncEventListenersFactory listenersFactory;
+  private final Provider<AsyncTaskScheduler> taskScheduler;
 
   @Inject
   public RoutingEventDispatcher(EventTransport eventTransport,
                                 AsyncEventHandlerFactory handlerFactory,
-                                AsyncEventListenersFactory listenersFactory) {
+                                AsyncEventListenersFactory listenersFactory,
+                                Provider<AsyncTaskScheduler> taskScheduler) {
     this.eventTransport = eventTransport;
     this.handlerFactory = handlerFactory;
     this.listenersFactory = listenersFactory;
+    this.taskScheduler = taskScheduler;
   }
 
   /**
@@ -61,6 +60,31 @@ public class RoutingEventDispatcher {
     dispatchListeners(event);
   }
 
+  /**
+   * @param eventClassAsString
+   * @param eventAsJson
+   * @param listenerId
+   * @throws ClassNotFoundException
+   */
+  public void dispatchEventListener(String eventClassAsString, String eventAsJson, int listenerId) throws ClassNotFoundException {
+    if (Strings.isNullOrEmpty(eventClassAsString) || Strings.isNullOrEmpty(eventAsJson)) {
+      throw new IllegalArgumentException("No AsyncEvent class as string or evnt as json provided.");
+    }
+
+    Class<?> eventClass = Class.forName(eventClassAsString);
+
+    if (!Arrays.asList(eventClass.getInterfaces()).contains(AsyncEvent.class)) {
+      throw new IllegalArgumentException("No AsyncEvent class provided.");
+    }
+
+    AsyncEvent<AsyncEventHandler> event = getAsyncEvent(eventAsJson, eventClass);
+
+    List<? extends AsyncEventListener> listeners  = listenersFactory.create(event.getClass());
+    AsyncEventListener listener = listeners.get(listenerId);
+
+    listener.onEvent(event);
+  }
+
   private AsyncEvent<AsyncEventHandler> getAsyncEvent(String eventAsJson, Class<?> eventClass) {
 
     ByteArrayInputStream inputStream = null;
@@ -87,8 +111,10 @@ public class RoutingEventDispatcher {
 
   private void dispatchListeners(AsyncEvent<AsyncEventHandler> event) {
     List<? extends AsyncEventListener> listeners  = listenersFactory.create(event.getClass());
+    int id = 0;
     for (AsyncEventListener listener : listeners) {
-      listener.onEvent(event);
+      taskScheduler.get().add(AsyncTaskOptions.event(event).eventListenerId(id)).now();
+      id++;
     }
   }
 
