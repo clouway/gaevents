@@ -7,4 +7,5 @@ import java.util.List;
  */
 public interface AsyncEventListenersFactory {
   public List<AsyncEventListener> create(Class<? extends AsyncEvent> eventClass);
+  AsyncEventListener createListener(Class<? extends AsyncEventListener> eventListenerClassName);
 }

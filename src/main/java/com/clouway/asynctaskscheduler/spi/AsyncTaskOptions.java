@@ -19,7 +19,8 @@ public class AsyncTaskOptions {
   private AsyncEvent event;
   private String taskName;
   private Boolean transactionless = false;
-  private Integer eventListenerId;
+  private String eventListener;
+  private String eventHandler;
 
 
   private AsyncTaskOptions() {
@@ -96,8 +97,13 @@ public class AsyncTaskOptions {
     return this;
   }
 
-  public AsyncTaskOptions eventListenerId(Integer eventListenerId) {
-    this.eventListenerId = eventListenerId;
+  public AsyncTaskOptions eventListener(String eventListener) {
+    this.eventListener = eventListener;
+    return this;
+  }
+
+  public AsyncTaskOptions eventHandler(String eventHandler) {
+    this.eventHandler = eventHandler;
     return this;
   }
 
@@ -140,7 +146,11 @@ public class AsyncTaskOptions {
     return false;
   }
 
-  public Integer getEventListenerId() {
-    return eventListenerId;
+  public String getEventListener() {
+    return eventListener;
+  }
+
+  public String getEventHandler() {
+    return eventHandler;
   }
 }

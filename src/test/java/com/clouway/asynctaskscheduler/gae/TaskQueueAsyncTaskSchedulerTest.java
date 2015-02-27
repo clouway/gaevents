@@ -225,16 +225,29 @@ public class TaskQueueAsyncTaskSchedulerTest {
   }
 
   @Test
-  public void shouldAddTaskToDefaultTaskQueueWhenTaskOptionsForEventListenerIsProvided() throws Exception {//////////////////////////test
+  public void shouldAddTaskToDefaultTaskQueueWhenTaskOptionsForEventListenerIsProvided() throws Exception {
     ActionEvent event = new ActionEvent("test message");
-    Integer eventListenerId = 1;
-    taskScheduler.add(AsyncTaskOptions.event(event).eventListenerId(eventListenerId))
+    String eventListener = "com.clouway.DummyClass";
+    taskScheduler.add(AsyncTaskOptions.event(event).eventListener(eventListener))
             .now();
 
     QueueStateInfo qsi = getQueueStateInfo(QueueFactory.getDefaultQueue().getQueueName());
     assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.EVENT, event.getClass().getName());
     assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.EVENT_AS_JSON, encode(gson.toJson(event)));
-    assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.LISTENER_ID, eventListenerId.toString());
+    assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.LISTENER, eventListener);
+  }
+
+  @Test
+  public void shouldAddTaskToDefaultTaskQueueWhenTaskOptionsForEventHandlerIsProvided() throws Exception {
+    ActionEvent event = new ActionEvent("test message");
+    String eventHandler = "com.clouway.DummyClass";
+    taskScheduler.add(AsyncTaskOptions.event(event).eventHandler(eventHandler))
+            .now();
+
+    QueueStateInfo qsi = getQueueStateInfo(QueueFactory.getDefaultQueue().getQueueName());
+    assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.EVENT, event.getClass().getName());
+    assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.EVENT_AS_JSON, encode(gson.toJson(event)));
+    assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.HANDLER, eventHandler);
   }
 
   @Test

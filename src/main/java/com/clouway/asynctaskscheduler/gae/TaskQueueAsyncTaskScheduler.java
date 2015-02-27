@@ -55,7 +55,8 @@ public class TaskQueueAsyncTaskScheduler implements AsyncTaskScheduler {
   public static final String TASK_QUEUE = "taskQueue";
   public static final String EVENT = "event";
   public static final String EVENT_AS_JSON = "eventJson";
-  public static final String LISTENER_ID = "listenerId";
+  public static final String LISTENER = "listener";
+  public static final String HANDLER = "handler";
 
   private List<AsyncTaskOptions> taskOptions;
 
@@ -147,8 +148,12 @@ public class TaskQueueAsyncTaskScheduler implements AsyncTaskScheduler {
       throw new RuntimeException(e);
     }
 
-    if (taskOptions.getEventListenerId() != null){
-      task.param(LISTENER_ID, taskOptions.getEventListenerId().toString());
+    if (taskOptions.getEventListener() != null){
+      task.param(LISTENER, taskOptions.getEventListener().toString());
+    }
+
+    if (taskOptions.getEventHandler() != null){
+      task.param(HANDLER, taskOptions.getEventHandler().toString());
     }
 
     //adds all other parameters

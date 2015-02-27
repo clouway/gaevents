@@ -48,12 +48,16 @@ public class TaskQueueAsyncTaskExecutorServlet extends HttpServlet {
       String eventAsJson = getParameter(request, TaskQueueAsyncTaskScheduler.EVENT_AS_JSON);
 
       //listener details
-      String listenerId = getParameter(request, TaskQueueAsyncTaskScheduler.LISTENER_ID);
+      String listenerClassAsString = getParameter(request, TaskQueueAsyncTaskScheduler.LISTENER);
+       //handler details
+      String handlerClassAsString = getParameter(request, TaskQueueAsyncTaskScheduler.HANDLER);
 
-      //if event and a listenerID is passed the listener should be executed. This happens so every listener can be executed in different task queue
-      if (!Strings.isNullOrEmpty(listenerId) && !Strings.isNullOrEmpty(eventClassAsString) && !Strings.isNullOrEmpty(eventAsJson)) {
+      if (!Strings.isNullOrEmpty(handlerClassAsString) && !Strings.isNullOrEmpty(eventClassAsString) && !Strings.isNullOrEmpty(eventAsJson)) {
 
-        eventDispatcher.dispatchEventListener(eventClassAsString, eventAsJson, new Integer(listenerId));
+        eventDispatcher.dispatchEventHandler(eventClassAsString, eventAsJson, handlerClassAsString);
+      } else if (!Strings.isNullOrEmpty(listenerClassAsString) && !Strings.isNullOrEmpty(eventClassAsString) && !Strings.isNullOrEmpty(eventAsJson)) {
+
+        eventDispatcher.dispatchEventListener(eventClassAsString, eventAsJson, listenerClassAsString);
         //if event is passed then it should be dispatched to it's handler
       } else if (!Strings.isNullOrEmpty(eventClassAsString) && !Strings.isNullOrEmpty(eventAsJson)) {
 

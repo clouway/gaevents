@@ -1,6 +1,10 @@
 package com.clouway.asynctaskscheduler.gae;
 
 import com.clouway.asynctaskscheduler.spi.*;
+import com.google.appengine.api.datastore.DatastoreFailureException;
+import com.google.appengine.api.datastore.DatastoreService;
+import com.google.appengine.api.datastore.DatastoreServiceFactory;
+import com.google.appengine.api.datastore.Transaction;
 import com.google.common.base.Strings;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
@@ -54,19 +58,16 @@ public class RoutingEventDispatcher {
 
     Class<? extends AsyncEventHandler> evenHandlerClass = event.getAssociatedHandlerClass();
 
-    //1.
-    dispatchHandler(event, evenHandlerClass);
-    //2.
-    dispatchListeners(event);
+    dispatchHandlerAndListeners(event, evenHandlerClass);
   }
 
   /**
    * @param eventClassAsString
    * @param eventAsJson
-   * @param listenerId
+   * @param listenerClassAsString
    * @throws ClassNotFoundException
    */
-  public void dispatchEventListener(String eventClassAsString, String eventAsJson, int listenerId) throws ClassNotFoundException {
+  public void dispatchEventListener(String eventClassAsString, String eventAsJson, String listenerClassAsString) throws ClassNotFoundException {
     if (Strings.isNullOrEmpty(eventClassAsString) || Strings.isNullOrEmpty(eventAsJson)) {
       throw new IllegalArgumentException("No AsyncEvent class as string or evnt as json provided.");
     }
@@ -79,10 +80,27 @@ public class RoutingEventDispatcher {
 
     AsyncEvent<AsyncEventHandler> event = getAsyncEvent(eventAsJson, eventClass);
 
-    List<? extends AsyncEventListener> listeners  = listenersFactory.create(event.getClass());
-    AsyncEventListener listener = listeners.get(listenerId);
+    AsyncEventListener listener  = listenersFactory.createListener((Class<? extends AsyncEventListener>) Class.forName(listenerClassAsString));
 
     listener.onEvent(event);
+  }
+
+  public void dispatchEventHandler(String eventClassAsString, String eventAsJson, String evenHandlerClassAsString) throws ClassNotFoundException {
+    if (Strings.isNullOrEmpty(eventClassAsString) || Strings.isNullOrEmpty(eventAsJson)) {
+      throw new IllegalArgumentException("No AsyncEvent class as string or evnt as json provided.");
+    }
+
+    Class<?> eventClass = Class.forName(eventClassAsString);
+
+    if (!Arrays.asList(eventClass.getInterfaces()).contains(AsyncEvent.class)) {
+      throw new IllegalArgumentException("No AsyncEvent class provided.");
+    }
+
+    AsyncEvent<AsyncEventHandler> event = getAsyncEvent(eventAsJson, eventClass);
+
+    AsyncEventHandler handler = handlerFactory.create((Class<? extends AsyncEventHandler>) Class.forName(evenHandlerClassAsString));
+
+    event.dispatch(handler);
   }
 
   private AsyncEvent<AsyncEventHandler> getAsyncEvent(String eventAsJson, Class<?> eventClass) {
@@ -109,24 +127,37 @@ public class RoutingEventDispatcher {
     return event;
   }
 
-  private void dispatchListeners(AsyncEvent<AsyncEventHandler> event) {
-    List<? extends AsyncEventListener> listeners  = listenersFactory.create(event.getClass());
-    int id = 0;
-    for (AsyncEventListener listener : listeners) {
-      taskScheduler.get().add(AsyncTaskOptions.event(event).eventListenerId(id)).now();
-      id++;
-    }
-  }
 
   /**
    * Dsipatches the event to it's handler
    * @param event
    * @param evenHandlerClass
    */
-  private void dispatchHandler(AsyncEvent<AsyncEventHandler> event, Class<? extends AsyncEventHandler> evenHandlerClass) {
-    AsyncEventHandler handler = handlerFactory.create(evenHandlerClass);
+  private void dispatchHandlerAndListeners(AsyncEvent<AsyncEventHandler> event, Class<? extends AsyncEventHandler> evenHandlerClass) {
 
-    event.dispatch(handler);
+    DatastoreService ds = DatastoreServiceFactory.getDatastoreService();
+
+    Transaction txn = null;
+    try {
+      txn = ds.beginTransaction();
+
+      List<? extends AsyncEventListener> listeners  = listenersFactory.create(event.getClass());
+      AsyncTaskScheduler asyncTaskScheduler = taskScheduler.get();
+
+      asyncTaskScheduler.add(AsyncTaskOptions.event(event).eventHandler(evenHandlerClass.getCanonicalName()));
+
+      for (AsyncEventListener listener : listeners) {
+        asyncTaskScheduler.add(AsyncTaskOptions.event(event).eventListener(listener.getClass().getCanonicalName()));
+      }
+
+      asyncTaskScheduler.now();
+
+      txn.commit();
+    } catch (DatastoreFailureException e) {
+      if (txn != null) {
+        txn.rollback();
+      }
+    }
   }
 
 

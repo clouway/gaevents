@@ -29,8 +29,9 @@ import java.util.List;
 import java.util.Map;
 
 import static junit.framework.Assert.assertEquals;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
+
 
 /**
  * @author Mihail Lesikov (mlesikov@gmail.com)
@@ -57,6 +58,11 @@ public class RoutingEventDispatcherTest {
     public List<AsyncEventListener> create(Class<? extends AsyncEvent> eventClass) {
       return Lists.newArrayList(indexingListener, testEventListener);
     }
+
+    @Override
+    public AsyncEventListener createListener(Class<? extends AsyncEventListener> eventListenerClassName) {
+      return testEventListener;
+    }
   };
 
   private String eventClassAsString = ActionEvent.class.getName();
@@ -78,7 +84,7 @@ public class RoutingEventDispatcherTest {
       }
 
       @Override
-      public AsyncEventListenersFactory getAsyncEventListenerFactory(Injector injector) {
+      public AsyncEventListenersFactory getAsyncEventListenersFactory(Injector injector) {
         return listenersFactory;
       }
     });
@@ -95,10 +101,12 @@ public class RoutingEventDispatcherTest {
 
   @Test
   public void shouldDispatchAsyncEvent() throws Exception {
-
     dispatcher.dispatchAsyncEvent(eventClassAsString, eventAsJson);
 
-    assertEquals(event.getMessage(), handler.message);
+    QueueStateInfo qsi = getQueueStateInfo(QueueFactory.getDefaultQueue().getQueueName());
+
+    //three task queues fired because the event has 2 listeners and 1 handler
+    assertThat(qsi.getCountTasks(), is(3));
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -131,21 +139,27 @@ public class RoutingEventDispatcherTest {
     QueueStateInfo qsi = getQueueStateInfo(QueueFactory.getDefaultQueue().getQueueName());
 
     //two task queues fired because the event has 2 listeners
-    assertThat(qsi.getCountTasks(), is(2));
+    assertThat(qsi.getCountTasks(), is(3));
     //each fired task queue contains the event class and the id of the listener to be executed
     assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.EVENT, event.getClass().getCanonicalName());
-    assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.LISTENER_ID, "0");
-    assertParams(qsi.getTaskInfo().get(1).getBody(), TaskQueueAsyncTaskScheduler.LISTENER_ID, "1");
+    assertParams(qsi.getTaskInfo().get(1).getBody(), TaskQueueAsyncTaskScheduler.LISTENER, indexingListener.getClass().getCanonicalName());
+    assertParams(qsi.getTaskInfo().get(2).getBody(), TaskQueueAsyncTaskScheduler.LISTENER, testEventListener.getClass().getCanonicalName());
   }
 
   @Test
   public void shouldDispatchEventListener() throws Exception {
     //execute event listeners by their id, the id is received as task queue parameter
-    dispatcher.dispatchEventListener(eventClassAsString, eventAsJson, 0);
-    dispatcher.dispatchEventListener(eventClassAsString, eventAsJson, 1);
+    dispatcher.dispatchEventListener(eventClassAsString, eventAsJson, testEventListener.getClass().getCanonicalName());
 
-    assertEquals(event.getMessage(), ((ActionEvent) indexingListener.event).getMessage());
     assertEquals(event.getMessage(), ((ActionEvent) testEventListener.event).getMessage());
+  }
+
+  @Test
+  public void shouldDispatchEventHandler() throws Exception {
+    //execute event listeners by their id, the id is received as task queue parameter
+    dispatcher.dispatchEventHandler(eventClassAsString, eventAsJson, event.getAssociatedHandlerClass().getCanonicalName());
+
+    assertEquals(event.getMessage(), handler.message);
   }
 
   private QueueStateInfo getQueueStateInfo(String queueName) {
