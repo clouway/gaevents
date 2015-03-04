@@ -25,6 +25,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -56,11 +57,14 @@ public class RoutingEventDispatcherTest {
   private AsyncEventListenersFactory listenersFactory = new AsyncEventListenersFactory() {
     @Override
     public List<AsyncEventListener> create(Class<? extends AsyncEvent> eventClass) {
-      return Lists.newArrayList(indexingListener, testEventListener);
+      List<AsyncEventListener> listeners = new ArrayList<AsyncEventListener>();
+      listeners.add(indexingListener);
+      listeners.add(testEventListener);
+      return listeners;
     }
 
     @Override
-    public AsyncEventListener createListener(Class<? extends AsyncEventListener> eventListenerClassName) {
+    public AsyncEventListener createListener(Class<? extends AsyncEvent> eventClass, String eventListenerClassName) {
       return testEventListener;
     }
   };
@@ -109,6 +113,40 @@ public class RoutingEventDispatcherTest {
     assertThat(qsi.getCountTasks(), is(3));
   }
 
+  @Test
+  public void dispatchAsyncEventInSameTaskQueueIfNoListeners() throws Exception {
+    listenersFactory = new AsyncEventListenersFactory() {
+      @Override
+      public List<AsyncEventListener> create(Class<? extends AsyncEvent> eventClass) {
+        //no listeners for the event, as the test description says
+        return Lists.newArrayList();
+      }
+
+      @Override
+      public AsyncEventListener createListener(Class<? extends AsyncEvent> eventClass, String eventListenerClassName) {
+        return null;
+      }
+    };
+
+    //new injector so the listenersFactory can be initiated without the listeners
+    Injector injector = Guice.createInjector(new BackgroundTasksModule() {
+      @Override
+      public AsyncEventHandlerFactory getAsyncEventHandlerFactory(Injector injector) {
+        return handlerFactory;
+      }
+
+      @Override
+      public AsyncEventListenersFactory getAsyncEventListenersFactory(Injector injector) {
+        return listenersFactory;
+      }
+    });
+    injector.injectMembers(this);
+
+    dispatcher.dispatchAsyncEvent(eventClassAsString, eventAsJson);
+
+    assertEquals(event.getMessage(), handler.message);
+  }
+
   @Test(expected = IllegalArgumentException.class)
   public void shouldNotDispatchAsyncEventWhenEventClassNull() throws Exception {
     dispatcher.dispatchAsyncEvent(null, eventAsJson);
@@ -141,15 +179,15 @@ public class RoutingEventDispatcherTest {
     //two task queues fired because the event has 2 listeners
     assertThat(qsi.getCountTasks(), is(3));
     //each fired task queue contains the event class and the id of the listener to be executed
-    assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.EVENT, event.getClass().getCanonicalName());
-    assertParams(qsi.getTaskInfo().get(1).getBody(), TaskQueueAsyncTaskScheduler.LISTENER, indexingListener.getClass().getCanonicalName());
-    assertParams(qsi.getTaskInfo().get(2).getBody(), TaskQueueAsyncTaskScheduler.LISTENER, testEventListener.getClass().getCanonicalName());
+    assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.EVENT, event.getClass().getCanonicalName());//get canonical name because the event class can be only retrieved with the full packaging
+    assertParams(qsi.getTaskInfo().get(1).getBody(), TaskQueueAsyncTaskScheduler.LISTENER, indexingListener.getClass().getSimpleName());
+    assertParams(qsi.getTaskInfo().get(2).getBody(), TaskQueueAsyncTaskScheduler.LISTENER, testEventListener.getClass().getSimpleName());
   }
 
   @Test
   public void shouldDispatchEventListener() throws Exception {
     //execute event listeners by their id, the id is received as task queue parameter
-    dispatcher.dispatchEventListener(eventClassAsString, eventAsJson, testEventListener.getClass().getCanonicalName());
+    dispatcher.dispatchEventListener(eventClassAsString, eventAsJson, testEventListener.getClass().getSimpleName());
 
     assertEquals(event.getMessage(), ((ActionEvent) testEventListener.event).getMessage());
   }
@@ -157,7 +195,7 @@ public class RoutingEventDispatcherTest {
   @Test
   public void shouldDispatchEventHandler() throws Exception {
     //execute event listeners by their id, the id is received as task queue parameter
-    dispatcher.dispatchEventHandler(eventClassAsString, eventAsJson, event.getAssociatedHandlerClass().getCanonicalName());
+    dispatcher.dispatchEventHandler(eventClassAsString, eventAsJson, event.getAssociatedHandlerClass().getSimpleName());
 
     assertEquals(event.getMessage(), handler.message);
   }

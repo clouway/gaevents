@@ -66,6 +66,23 @@ public class TaskQueueAsyncTaskExecutorServletTest {
   }
 
   @Test
+  public void dispatchingEventHandler() throws Exception {
+    String eventValue = "event as json";
+    String encodedEventValue = URLEncoder.encode("event as json","UTF-8");
+    String eventHandler = "com.clouway.DummyClass";
+
+    when(request.getParameter(TaskQueueAsyncTaskScheduler.EVENT)).thenReturn("event.class");
+    when(request.getParameter(TaskQueueAsyncTaskScheduler.EVENT_AS_JSON)).thenReturn(encodedEventValue);
+    when(request.getParameter(TaskQueueAsyncTaskScheduler.HANDLER)).thenReturn(eventHandler);
+
+    servlet.doGet(request, response);
+
+    verify(eventDisplatcher).dispatchEventHandler("event.class", eventValue, eventHandler);
+    verifyZeroInteractions(routingTaskDispatcher);
+
+  }
+
+  @Test
   public void dispatchingAsyncTask() throws Exception {
 
     when(request.getParameter(TaskQueueAsyncTaskScheduler.TASK_QUEUE)).thenReturn("task.class");

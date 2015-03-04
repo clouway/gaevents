@@ -46,37 +46,48 @@ public class TaskQueueAsyncTaskExecutorServlet extends HttpServlet {
       //event details
       String eventClassAsString = getParameter(request, TaskQueueAsyncTaskScheduler.EVENT);
       String eventAsJson = getParameter(request, TaskQueueAsyncTaskScheduler.EVENT_AS_JSON);
-
       //listener details
       String listenerClassAsString = getParameter(request, TaskQueueAsyncTaskScheduler.LISTENER);
        //handler details
       String handlerClassAsString = getParameter(request, TaskQueueAsyncTaskScheduler.HANDLER);
 
-      if (!Strings.isNullOrEmpty(handlerClassAsString) && !Strings.isNullOrEmpty(eventClassAsString) && !Strings.isNullOrEmpty(eventAsJson)) {
+      dispatchAsyncEvent(eventClassAsString, eventAsJson, listenerClassAsString, handlerClassAsString);
+      dispatchEventHandler(handlerClassAsString, eventClassAsString, eventAsJson);
+      dispatchEventListener(listenerClassAsString, eventClassAsString, eventAsJson);
+      dispatchAsyncTask(asyncTaskClass ,request);
 
-        eventDispatcher.dispatchEventHandler(eventClassAsString, eventAsJson, handlerClassAsString);
-      } else if (!Strings.isNullOrEmpty(listenerClassAsString) && !Strings.isNullOrEmpty(eventClassAsString) && !Strings.isNullOrEmpty(eventAsJson)) {
-
-        eventDispatcher.dispatchEventListener(eventClassAsString, eventAsJson, listenerClassAsString);
-        //if event is passed then it should be dispatched to it's handler
-      } else if (!Strings.isNullOrEmpty(eventClassAsString) && !Strings.isNullOrEmpty(eventAsJson)) {
-
-        eventDispatcher.dispatchAsyncEvent(eventClassAsString, eventAsJson);
-
-        // if asyncTask is provided it should be executed
-      } else if (!Strings.isNullOrEmpty(asyncTaskClass)) {
-
-        Map<String, String[]> params = Maps.newHashMap(request.getParameterMap());
-
-        //todo do not pass map here;
-        taskDispatcher.dispatchAsyncTask(params, asyncTaskClass);
-
-      }
 
     } catch (ClassNotFoundException e) {
       e.printStackTrace();
     }
 
+  }
+
+  private void dispatchAsyncTask(String asyncTaskClass, HttpServletRequest request) throws ClassNotFoundException {
+    if (!Strings.isNullOrEmpty(asyncTaskClass)) {
+      Map<String, String[]> params = Maps.newHashMap(request.getParameterMap());
+
+      //todo do not pass map here;
+      taskDispatcher.dispatchAsyncTask(params, asyncTaskClass);
+    }
+  }
+
+  private void dispatchAsyncEvent(String eventClassAsString, String eventAsJson, String listenerClassAsString, String handlerClassAsString) throws ClassNotFoundException {
+    if (!Strings.isNullOrEmpty(eventClassAsString) && !Strings.isNullOrEmpty(eventAsJson) && Strings.isNullOrEmpty(handlerClassAsString) && Strings.isNullOrEmpty(listenerClassAsString)) {
+      eventDispatcher.dispatchAsyncEvent(eventClassAsString, eventAsJson);
+    }
+  }
+
+  private void dispatchEventListener(String listenerClassAsString, String eventClassAsString, String eventAsJson) throws ClassNotFoundException {
+    if (!Strings.isNullOrEmpty(listenerClassAsString) && !Strings.isNullOrEmpty(eventClassAsString) && !Strings.isNullOrEmpty(eventAsJson)) {
+      eventDispatcher.dispatchEventListener(eventClassAsString, eventAsJson, listenerClassAsString);
+    }
+  }
+
+  private void dispatchEventHandler(String handlerClassAsString, String eventClassAsString, String eventAsJson) throws ClassNotFoundException {
+    if (!Strings.isNullOrEmpty(handlerClassAsString) && !Strings.isNullOrEmpty(eventClassAsString) && !Strings.isNullOrEmpty(eventAsJson)) {
+      eventDispatcher.dispatchEventHandler(eventClassAsString, eventAsJson, handlerClassAsString);
+    }
   }
 
   private String getParameter(HttpServletRequest request, String pramName) throws UnsupportedEncodingException {

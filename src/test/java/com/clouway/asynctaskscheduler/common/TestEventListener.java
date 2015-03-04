@@ -6,11 +6,11 @@ import com.clouway.asynctaskscheduler.spi.AsyncEventListener;
 /**
  * @author Mihail Lesikov (mlesikov@gmail.com)
  */
-public class TestEventListener implements AsyncEventListener {
+public class TestEventListener implements AsyncEventListener<ActionEvent> {
   public AsyncEvent event;
 
   @Override
-  public void onEvent(AsyncEvent event) {
+  public void onEvent(ActionEvent event) {
     this.event = event;
   }
 }

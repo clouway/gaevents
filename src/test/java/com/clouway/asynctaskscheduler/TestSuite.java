@@ -1,12 +1,6 @@
 package com.clouway.asynctaskscheduler;
 
-import com.clouway.asynctaskscheduler.gae.GsonEventSerializationTest;
-import com.clouway.asynctaskscheduler.gae.RoutingEventDispatcherTest;
-import com.clouway.asynctaskscheduler.gae.RoutingTaskDispatcherTest;
-import com.clouway.asynctaskscheduler.gae.TaskQueueAsyncTaskExecutorServletTest;
-import com.clouway.asynctaskscheduler.gae.TaskQueueAsyncTaskSchedulerErrorHandlingTest;
-import com.clouway.asynctaskscheduler.gae.TaskQueueAsyncTaskSchedulerTest;
-import com.clouway.asynctaskscheduler.gae.TaskQueueEventBusTest;
+import com.clouway.asynctaskscheduler.gae.*;
 import com.clouway.asynctaskscheduler.spi.AsyncTaskParamsTest;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
@@ -23,7 +17,8 @@ import org.junit.runners.Suite;
         TaskQueueAsyncTaskExecutorServletTest.class,
         TaskQueueAsyncTaskSchedulerErrorHandlingTest.class,
         TaskQueueAsyncTaskSchedulerTest.class,
-        TaskQueueEventBusTest.class
+        TaskQueueEventBusTest.class,
+        AsyncEventListenersFactoryProviderTest.class
 })
 public class TestSuite {
 }

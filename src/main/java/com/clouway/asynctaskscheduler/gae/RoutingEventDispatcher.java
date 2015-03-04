@@ -1,7 +1,6 @@
 package com.clouway.asynctaskscheduler.gae;
 
 import com.clouway.asynctaskscheduler.spi.*;
-import com.google.appengine.api.datastore.DatastoreFailureException;
 import com.google.appengine.api.datastore.DatastoreService;
 import com.google.appengine.api.datastore.DatastoreServiceFactory;
 import com.google.appengine.api.datastore.Transaction;
@@ -38,90 +37,89 @@ public class RoutingEventDispatcher {
   }
 
   /**
+   * Dispatches asyncevent. Basically fires separate task queue for the handler and for the listeners
    * @param eventClassAsString
    * @param eventAsJson
    * @throws ClassNotFoundException
    */
   public void dispatchAsyncEvent(String eventClassAsString, String eventAsJson) throws ClassNotFoundException {
+    if (validParams(eventClassAsString, eventAsJson)) {
 
-    if (Strings.isNullOrEmpty(eventClassAsString) || Strings.isNullOrEmpty(eventAsJson)) {
-      throw new IllegalArgumentException("No AsyncEvent class as string or evnt as json provided.");
+      AsyncEvent<AsyncEventHandler> event = getAsyncEvent(eventAsJson, eventClassAsString);
+
+      Class<? extends AsyncEventHandler> evenHandlerClass = event.getAssociatedHandlerClass();
+
+      dispatchHandlerAndListeners(event, evenHandlerClass);
     }
-
-    Class<?> eventClass = Class.forName(eventClassAsString);
-
-    if (!Arrays.asList(eventClass.getInterfaces()).contains(AsyncEvent.class)) {
-      throw new IllegalArgumentException("No AsyncEvent class provided.");
-    }
-
-    AsyncEvent<AsyncEventHandler> event = getAsyncEvent(eventAsJson, eventClass);
-
-    Class<? extends AsyncEventHandler> evenHandlerClass = event.getAssociatedHandlerClass();
-
-    dispatchHandlerAndListeners(event, evenHandlerClass);
   }
 
   /**
+   * Dispatches single event listener
    * @param eventClassAsString
    * @param eventAsJson
-   * @param listenerClassAsString
+   * @param listenerClassName
    * @throws ClassNotFoundException
    */
-  public void dispatchEventListener(String eventClassAsString, String eventAsJson, String listenerClassAsString) throws ClassNotFoundException {
-    if (Strings.isNullOrEmpty(eventClassAsString) || Strings.isNullOrEmpty(eventAsJson)) {
-      throw new IllegalArgumentException("No AsyncEvent class as string or evnt as json provided.");
+  public void dispatchEventListener(String eventClassAsString, String eventAsJson, String listenerClassName) throws ClassNotFoundException {
+    if (validParams(eventClassAsString, eventAsJson, listenerClassName)) {
+
+      AsyncEvent<AsyncEventHandler> event = getAsyncEvent(eventAsJson, eventClassAsString);
+
+      AsyncEventListener<AsyncEvent> listener  = listenersFactory.createListener(event.getClass(), listenerClassName);
+
+      listener.onEvent(event);
     }
-
-    Class<?> eventClass = Class.forName(eventClassAsString);
-
-    if (!Arrays.asList(eventClass.getInterfaces()).contains(AsyncEvent.class)) {
-      throw new IllegalArgumentException("No AsyncEvent class provided.");
-    }
-
-    AsyncEvent<AsyncEventHandler> event = getAsyncEvent(eventAsJson, eventClass);
-
-    AsyncEventListener listener  = listenersFactory.createListener((Class<? extends AsyncEventListener>) Class.forName(listenerClassAsString));
-
-    listener.onEvent(event);
   }
 
-  public void dispatchEventHandler(String eventClassAsString, String eventAsJson, String evenHandlerClassAsString) throws ClassNotFoundException {
-    if (Strings.isNullOrEmpty(eventClassAsString) || Strings.isNullOrEmpty(eventAsJson)) {
-      throw new IllegalArgumentException("No AsyncEvent class as string or evnt as json provided.");
+  /**
+   * Dispatches the event handler
+   * @param eventClassAsString
+   * @param eventAsJson
+   * @param evenHandlerClassName
+   * @throws ClassNotFoundException
+   */
+  public void dispatchEventHandler(String eventClassAsString, String eventAsJson, String evenHandlerClassName) throws ClassNotFoundException {
+    if (validParams(eventClassAsString, eventAsJson, evenHandlerClassName)) {
+
+      AsyncEvent<AsyncEventHandler> event = getAsyncEvent(eventAsJson, eventClassAsString);
+
+      AsyncEventHandler handler = handlerFactory.create(event.getAssociatedHandlerClass());
+
+      event.dispatch(handler);
     }
-
-    Class<?> eventClass = Class.forName(eventClassAsString);
-
-    if (!Arrays.asList(eventClass.getInterfaces()).contains(AsyncEvent.class)) {
-      throw new IllegalArgumentException("No AsyncEvent class provided.");
-    }
-
-    AsyncEvent<AsyncEventHandler> event = getAsyncEvent(eventAsJson, eventClass);
-
-    AsyncEventHandler handler = handlerFactory.create((Class<? extends AsyncEventHandler>) Class.forName(evenHandlerClassAsString));
-
-    event.dispatch(handler);
   }
 
-  private AsyncEvent<AsyncEventHandler> getAsyncEvent(String eventAsJson, Class<?> eventClass) {
+  /**
+   * Returns valid async event object if valid parameters are provided
+   * @param eventAsJson
+   * @param eventClassAsString
+   * @return
+   * @throws ClassNotFoundException
+   */
+  private AsyncEvent<AsyncEventHandler> getAsyncEvent(String eventAsJson, String eventClassAsString) throws ClassNotFoundException {
+    Class<?> eventClass = Class.forName(eventClassAsString);
 
-    ByteArrayInputStream inputStream = null;
+    AsyncEvent<AsyncEventHandler> event = null;
 
-    try {
-      inputStream = new ByteArrayInputStream(eventAsJson.getBytes("UTF-8"));
-    } catch (UnsupportedEncodingException e) {
-      e.printStackTrace();
-    }
+    if (validEvent(eventClass)) {
+      ByteArrayInputStream inputStream = null;
 
-    AsyncEvent<AsyncEventHandler> event = (AsyncEvent) eventTransport.in(eventClass, inputStream);
-
-    try {
-
-      if (inputStream != null) {
-        inputStream.close();
+      try {
+        inputStream = new ByteArrayInputStream(eventAsJson.getBytes("UTF-8"));
+      } catch (UnsupportedEncodingException e) {
+        e.printStackTrace();
       }
-    } catch (IOException e) {
-      e.printStackTrace();
+
+      event = (AsyncEvent) eventTransport.in(eventClass, inputStream);
+
+      try {
+
+        if (inputStream != null) {
+          inputStream.close();
+        }
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
     }
 
     return event;
@@ -129,7 +127,8 @@ public class RoutingEventDispatcher {
 
 
   /**
-   * Dsipatches the event to it's handler
+   * Dispatches the given event handler and the listeners in separate task queue in datastore transaction if there are no listeners for the event
+   * else dispatches the handler in the same task queue
    * @param event
    * @param evenHandlerClass
    */
@@ -142,25 +141,59 @@ public class RoutingEventDispatcher {
       txn = ds.beginTransaction();
 
       List<? extends AsyncEventListener> listeners  = listenersFactory.create(event.getClass());
-      AsyncTaskScheduler asyncTaskScheduler = taskScheduler.get();
 
-      asyncTaskScheduler.add(AsyncTaskOptions.event(event).eventHandler(evenHandlerClass.getCanonicalName()));
+      if (listeners.isEmpty()) {
+        AsyncEventHandler handler = handlerFactory.create(evenHandlerClass);
+        event.dispatch(handler);
+      } else {
+        AsyncTaskScheduler asyncTaskScheduler = taskScheduler.get();
 
-      for (AsyncEventListener listener : listeners) {
-        asyncTaskScheduler.add(AsyncTaskOptions.event(event).eventListener(listener.getClass().getCanonicalName()));
+        asyncTaskScheduler.add(AsyncTaskOptions.event(event).eventHandler(evenHandlerClass.getSimpleName()));
+
+        for (AsyncEventListener listener : listeners) {
+          asyncTaskScheduler.add(AsyncTaskOptions.event(event).eventListener(listener.getClass().getSimpleName()));
+        }
+
+        asyncTaskScheduler.now();
       }
 
-      asyncTaskScheduler.now();
-
       txn.commit();
-    } catch (DatastoreFailureException e) {
+    } catch (Exception e) {
       if (txn != null) {
         txn.rollback();
       }
+      throw new RuntimeException();
     }
   }
 
+  /**
+   * Validates if event class is implementing AsyncEvent interface
+   * @param eventClass
+   * @return
+   */
+  private boolean validEvent(Class<?> eventClass){
+    if (!Arrays.asList(eventClass.getInterfaces()).contains(AsyncEvent.class)) {
+      throw new IllegalArgumentException("The Provided Class Is Not AsyncEvent.");
+    }
 
+    return true;
+  }
+
+  /**
+   * Validates if provided parameters are null or emty
+   * @param params
+   * @return
+   */
+  private boolean validParams(String... params){
+
+    for (String param : params){
+      if(Strings.isNullOrEmpty(param)){
+        throw new IllegalArgumentException("Illegal parameter provided.");
+      }
+    }
+
+    return true;
+  }
 
 
 }

@@ -67,8 +67,14 @@ public class BackgroundTasksModule extends AbstractModule {
   public AsyncEventListenersFactory getAsyncEventListenersFactory(final Injector injector) {
     return new AsyncEventListenersFactory() {
       @Override
-      public AsyncEventListener createListener(Class<? extends AsyncEventListener> eventListenerClass) {
-        return (AsyncEventListener) injector.getInstance(eventListenerClass);
+      public AsyncEventListener createListener(Class<? extends AsyncEvent> eventClass, String eventListenerClassName) {
+        List<AsyncEventListener> listeners = create(eventClass);
+        for (AsyncEventListener listener : listeners){
+          if(eventListenerClassName.equals(listener.getClass().getSimpleName())){
+            return injector.getInstance(listener.getClass());
+          }
+        }
+        return null;
       }
 
       @Override
