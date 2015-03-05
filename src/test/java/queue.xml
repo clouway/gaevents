@@ -11,6 +11,11 @@
   </queue>
 
   <queue>
+    <name>customListenerTaskQueue</name>
+    <rate>1/s</rate>
+  </queue>
+
+  <queue>
     <name>customActionEventTaskQueue</name>
     <rate>1/s</rate>
   </queue>

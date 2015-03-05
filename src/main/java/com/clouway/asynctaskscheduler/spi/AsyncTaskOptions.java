@@ -19,8 +19,8 @@ public class AsyncTaskOptions {
   private AsyncEvent event;
   private String taskName;
   private Boolean transactionless = false;
-  private String eventListener;
-  private String eventHandler;
+  private Class<? extends AsyncEventListener> eventListenerClass;
+  private Class<? extends AsyncEventHandler> eventHandlerClass;
 
 
   private AsyncTaskOptions() {
@@ -75,6 +75,22 @@ public class AsyncTaskOptions {
     return taskOptions;
   }
 
+  public static AsyncTaskOptions eventWithListener(AsyncEvent event, Class<? extends AsyncEventListener> eventListenerClass) {
+    AsyncTaskOptions taskOptions = new AsyncTaskOptions();
+    taskOptions.event = event;
+    taskOptions.params = Maps.newHashMap();
+    taskOptions.eventListenerClass = eventListenerClass;
+    return taskOptions;
+  }
+
+  public static AsyncTaskOptions eventWithHandler(AsyncEvent event, Class<? extends AsyncEventHandler> eventHandlerClass) {
+    AsyncTaskOptions taskOptions = new AsyncTaskOptions();
+    taskOptions.event = event;
+    taskOptions.params = Maps.newHashMap();
+    taskOptions.eventHandlerClass = eventHandlerClass;
+    return taskOptions;
+  }
+
   public AsyncTaskOptions delay(long delayMills) {
     this.delayMills = delayMills;
     executionDateMills = 0;
@@ -94,16 +110,6 @@ public class AsyncTaskOptions {
 
   public AsyncTaskOptions transactionless() {
     transactionless = true;
-    return this;
-  }
-
-  public AsyncTaskOptions eventListener(String eventListener) {
-    this.eventListener = eventListener;
-    return this;
-  }
-
-  public AsyncTaskOptions eventHandler(String eventHandler) {
-    this.eventHandler = eventHandler;
     return this;
   }
 
@@ -146,11 +152,11 @@ public class AsyncTaskOptions {
     return false;
   }
 
-  public String getEventListener() {
-    return eventListener;
+  public Class<? extends AsyncEventListener> getEventListenerClass() {
+    return eventListenerClass;
   }
 
-  public String getEventHandler() {
-    return eventHandler;
+  public Class<? extends AsyncEventHandler> getEventHandlerClass() {
+    return eventHandlerClass;
   }
 }

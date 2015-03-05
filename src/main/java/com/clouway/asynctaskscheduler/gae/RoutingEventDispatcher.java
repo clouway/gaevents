@@ -140,7 +140,7 @@ public class RoutingEventDispatcher {
     try {
       txn = ds.beginTransaction();
 
-      List<? extends AsyncEventListener> listeners  = listenersFactory.create(event.getClass());
+      List<Class<? extends AsyncEventListener>> listeners  = listenersFactory.getListenerClasses(event.getClass());
 
       if (listeners.isEmpty()) {
         AsyncEventHandler handler = handlerFactory.create(evenHandlerClass);
@@ -148,10 +148,10 @@ public class RoutingEventDispatcher {
       } else {
         AsyncTaskScheduler asyncTaskScheduler = taskScheduler.get();
 
-        asyncTaskScheduler.add(AsyncTaskOptions.event(event).eventHandler(evenHandlerClass.getSimpleName()));
+        asyncTaskScheduler.add(AsyncTaskOptions.eventWithHandler(event, evenHandlerClass));
 
-        for (AsyncEventListener listener : listeners) {
-          asyncTaskScheduler.add(AsyncTaskOptions.event(event).eventListener(listener.getClass().getSimpleName()));
+        for (Class<? extends AsyncEventListener> listener : listeners) {
+          asyncTaskScheduler.add(AsyncTaskOptions.eventWithListener(event, listener));
         }
 
         asyncTaskScheduler.now();
@@ -180,7 +180,7 @@ public class RoutingEventDispatcher {
   }
 
   /**
-   * Validates if provided parameters are null or emty
+   * Validates if provided parameters are null or empty
    * @param params
    * @return
    */

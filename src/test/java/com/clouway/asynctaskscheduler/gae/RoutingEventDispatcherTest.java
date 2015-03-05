@@ -67,6 +67,14 @@ public class RoutingEventDispatcherTest {
     public AsyncEventListener createListener(Class<? extends AsyncEvent> eventClass, String eventListenerClassName) {
       return testEventListener;
     }
+
+    @Override
+    public List<Class<? extends AsyncEventListener>> getListenerClasses(Class<? extends AsyncEvent> eventClass) {
+      List<Class<? extends AsyncEventListener>> listeners = new ArrayList<Class<? extends AsyncEventListener>>();
+      listeners.add(IndexingListener.class);
+      listeners.add(TestEventListener.class);
+      return listeners;
+    }
   };
 
   private String eventClassAsString = ActionEvent.class.getName();
@@ -125,6 +133,11 @@ public class RoutingEventDispatcherTest {
       @Override
       public AsyncEventListener createListener(Class<? extends AsyncEvent> eventClass, String eventListenerClassName) {
         return null;
+      }
+
+      @Override
+      public List<Class<? extends AsyncEventListener>> getListenerClasses(Class<? extends AsyncEvent> eventClass) {
+        return Lists.newArrayList();
       }
     };
 

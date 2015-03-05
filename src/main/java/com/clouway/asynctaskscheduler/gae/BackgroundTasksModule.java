@@ -68,25 +68,29 @@ public class BackgroundTasksModule extends AbstractModule {
     return new AsyncEventListenersFactory() {
       @Override
       public AsyncEventListener createListener(Class<? extends AsyncEvent> eventClass, String eventListenerClassName) {
-        List<AsyncEventListener> listeners = create(eventClass);
-        for (AsyncEventListener listener : listeners){
-          if(eventListenerClassName.equals(listener.getClass().getSimpleName())){
-            return injector.getInstance(listener.getClass());
+        List<Class<? extends AsyncEventListener>> listeners = getListenerClasses(eventClass);
+        for (Class<? extends AsyncEventListener> listener : listeners){
+          if(eventListenerClassName.equals(listener.getSimpleName())){
+            return injector.getInstance(listener);
           }
         }
         return null;
       }
 
       @Override
-      public List<AsyncEventListener> create(Class<? extends AsyncEvent> eventClass) {
-
+      public List<Class<? extends AsyncEventListener>> getListenerClasses(Class<? extends AsyncEvent> eventClass) {
         TypeLiteral<Map<Class<? extends AsyncEvent>, List<Class<? extends AsyncEventListener>>>> mapOfEventListeners = new TypeLiteral<Map<Class<? extends AsyncEvent>, List<Class<? extends AsyncEventListener>>>>() {};
         Map<Class<? extends AsyncEvent>, List<Class<? extends AsyncEventListener>>> map;
         map = injector.getInstance(Key.get(mapOfEventListeners));
 
+        return  map.get(eventClass);
+      }
+
+      @Override
+      public List<AsyncEventListener> create(Class<? extends AsyncEvent> eventClass) {
         ArrayList<AsyncEventListener> listeners = Lists.newArrayList();
 
-        List<Class<? extends AsyncEventListener>> listenerClassList = map.get(eventClass);
+        List<Class<? extends AsyncEventListener>> listenerClassList = getListenerClasses(eventClass);
         if (listenerClassList != null) {
           for (Class<? extends AsyncEventListener> listenerClass : listenerClassList) {
             AsyncEventListener listener = injector.getInstance(listenerClass);

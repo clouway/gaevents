@@ -117,7 +117,7 @@ public class TaskQueueAsyncTaskScheduler implements AsyncTaskScheduler {
 
     setExecutionDate(taskOptions, task);
 
-    String queueName = getQueueName(taskOptions.getEvent().getClass(),taskOptions.getEvent().getAssociatedHandlerClass());
+    String queueName = getQueueName(taskOptions.getEvent().getClass(), taskOptions.getEvent().getAssociatedHandlerClass(), taskOptions.getEventListenerClass());
 
     addTaskToTheQueue(taskOptions, queueName, task);
 
@@ -148,12 +148,12 @@ public class TaskQueueAsyncTaskScheduler implements AsyncTaskScheduler {
       throw new RuntimeException(e);
     }
 
-    if (taskOptions.getEventListener() != null){
-      task.param(LISTENER, taskOptions.getEventListener().toString());
+    if (taskOptions.getEventListenerClass() != null){
+      task.param(LISTENER, taskOptions.getEventListenerClass().getSimpleName());
     }
 
-    if (taskOptions.getEventHandler() != null){
-      task.param(HANDLER, taskOptions.getEventHandler().toString());
+    if (taskOptions.getEventHandlerClass() != null){
+      task.param(HANDLER, taskOptions.getEventHandlerClass().getSimpleName());
     }
 
     //adds all other parameters
@@ -308,9 +308,19 @@ public class TaskQueueAsyncTaskScheduler implements AsyncTaskScheduler {
     QueueName queueName = null;
 
     for (Class asyncJobClass : asyncJobClasses) {
-      QueueName classQueueName = (QueueName) asyncJobClass.getAnnotation(QueueName.class);
-      if (classQueueName != null && !Strings.isNullOrEmpty(classQueueName.name())) {
-        queueName = classQueueName;
+      if (asyncJobClass != null) {
+        QueueName classQueueName = (QueueName) asyncJobClass.getAnnotation(QueueName.class);
+        if (classQueueName != null && !Strings.isNullOrEmpty(classQueueName.name())) {
+          queueName = classQueueName;
+        } else {
+          // little acrobatics so we can preserve the old behavior
+          classQueueName = (QueueName) asyncJobClasses[0].getAnnotation(QueueName.class);
+          if (classQueueName != null && !Strings.isNullOrEmpty(classQueueName.name())) {
+            queueName = classQueueName;
+          } else {
+            queueName = null;
+          }
+        }
       }
     }
 

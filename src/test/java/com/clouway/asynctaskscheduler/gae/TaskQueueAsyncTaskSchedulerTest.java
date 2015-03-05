@@ -1,10 +1,6 @@
 package com.clouway.asynctaskscheduler.gae;
 
-import com.clouway.asynctaskscheduler.common.ActionEvent;
-import com.clouway.asynctaskscheduler.common.CustomTaskQueueAsyncTask;
-import com.clouway.asynctaskscheduler.common.DefaultActionEvent;
-import com.clouway.asynctaskscheduler.common.DefaultTaskQueueAsyncTask;
-import com.clouway.asynctaskscheduler.common.TaskQueueParamParser;
+import com.clouway.asynctaskscheduler.common.*;
 import com.clouway.asynctaskscheduler.spi.AsyncTask;
 import com.clouway.asynctaskscheduler.spi.AsyncTaskOptions;
 import com.clouway.asynctaskscheduler.util.FakeCommonParamBinder;
@@ -227,27 +223,25 @@ public class TaskQueueAsyncTaskSchedulerTest {
   @Test
   public void shouldAddTaskToDefaultTaskQueueWhenTaskOptionsForEventListenerIsProvided() throws Exception {
     ActionEvent event = new ActionEvent("test message");
-    String eventListener = "com.clouway.DummyClass";
-    taskScheduler.add(AsyncTaskOptions.event(event).eventListener(eventListener))
+    taskScheduler.add(AsyncTaskOptions.eventWithListener(event, TestEventListener.class))
             .now();
 
     QueueStateInfo qsi = getQueueStateInfo(QueueFactory.getDefaultQueue().getQueueName());
     assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.EVENT, event.getClass().getName());
     assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.EVENT_AS_JSON, encode(gson.toJson(event)));
-    assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.LISTENER, eventListener);
+    assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.LISTENER, TestEventListener.class.getSimpleName());
   }
 
   @Test
   public void shouldAddTaskToDefaultTaskQueueWhenTaskOptionsForEventHandlerIsProvided() throws Exception {
     ActionEvent event = new ActionEvent("test message");
-    String eventHandler = "com.clouway.DummyClass";
-    taskScheduler.add(AsyncTaskOptions.event(event).eventHandler(eventHandler))
+    taskScheduler.add(AsyncTaskOptions.eventWithHandler(event, ActionEventHandler.class))
             .now();
 
     QueueStateInfo qsi = getQueueStateInfo(QueueFactory.getDefaultQueue().getQueueName());
     assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.EVENT, event.getClass().getName());
     assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.EVENT_AS_JSON, encode(gson.toJson(event)));
-    assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.HANDLER, eventHandler);
+    assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.HANDLER, ActionEventHandler.class.getSimpleName());
   }
 
   @Test
@@ -272,6 +266,22 @@ public class TaskQueueAsyncTaskSchedulerTest {
             .now();
 
     QueueStateInfo qsi = getQueueStateInfo(DefaultActionEvent.CUSTOM_TASK_QUEUE_NAME);
+    assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.EVENT, event.getClass().getName());
+    assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.EVENT_AS_JSON, encode(gson.toJson(event)));
+  }
+
+  @Test
+  public void shouldAddTaskToCustomTaskQueueWhenTaskOptionsForEventWithListenerIsProvided() throws Exception {
+    DefaultActionEvent event = new DefaultActionEvent("test message");
+    taskScheduler.add(AsyncTaskOptions.eventWithListener(event, DefaultActionEventListener.class))
+            .add(AsyncTaskOptions.eventWithHandler(event, DefaultActionEventHandler.class))
+            .now();
+
+    QueueStateInfo qsi = getQueueStateInfo(DefaultActionEventListener.CUSTOM_LISTENER_TASK_QUEUE_NAME);
+    assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.EVENT, event.getClass().getName());
+    assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.EVENT_AS_JSON, encode(gson.toJson(event)));
+
+    qsi = getQueueStateInfo(DefaultActionEvent.CUSTOM_TASK_QUEUE_NAME);
     assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.EVENT, event.getClass().getName());
     assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.EVENT_AS_JSON, encode(gson.toJson(event)));
   }
