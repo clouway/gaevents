@@ -1,7 +1,7 @@
 package com.clouway.asynctaskscheduler.gae;
 
 import com.clouway.asynctaskscheduler.spi.*;
-import com.clouway.asynctaskscheduler.spi.AsyncEventBusBinder.Listener;
+import com.clouway.asynctaskscheduler.spi.AsyncEventBusBinder.ListenerClazz;
 import com.google.common.collect.Lists;
 import com.google.inject.*;
 import com.google.inject.servlet.ServletModule;
@@ -13,6 +13,15 @@ import java.util.Set;
 
 
 /**
+ * Listener can be registered in modules as it follows:
+ * new AsyncEventBusBinder(binder())
+ *       .registerListener(ContractSignedEventListener.class)
+ *       .registerListener(ContractChangedEventListener.class);
+ * These bindings can be added in different modules for different events or
+ * for already added events. Single event can have more than one listeners
+ * Same listener can be bound only once to event, even if tried to be added
+ * multiple times exception wont be thrown.
+ *
  * @author Mihail Lesikov (mlesikov@gmail.com)
  */
 public class BackgroundTasksModule extends AbstractModule {
@@ -81,17 +90,17 @@ public class BackgroundTasksModule extends AbstractModule {
 
       @Override
       public List<Class<? extends AsyncEventListener>> getListenerClasses(Class<? extends AsyncEvent> eventClass) {
-        TypeLiteral<Set<Listener>> listenersKey = new TypeLiteral<Set<Listener>>() {};
-        Set<Listener> listeners = injector.getInstance(Key.get(listenersKey));
+        TypeLiteral<Set<ListenerClazz>> listenersKey = new TypeLiteral<Set<ListenerClazz>>() {};
+        Set<ListenerClazz> listenerClazzs = injector.getInstance(Key.get(listenersKey));
 
         List<Class<? extends AsyncEventListener>> listenerClasses = Lists.newArrayList();
 
-        for (Listener listener : listeners){
-          Class<? extends AsyncEvent> genericEventClass = getListenerEventClass(listener);
+        for (ListenerClazz listenerClazz : listenerClazzs){
+          Class<? extends AsyncEvent> genericEventClass = getListenerEventClass(listenerClazz);
 
-          if (genericEventClass.equals(eventClass)){
-            if (!listenerClasses.contains(listener.getListenerClass())){
-              listenerClasses.add(listener.getListenerClass());
+          if (genericEventClass != null && genericEventClass.equals(eventClass)){
+            if (!listenerClasses.contains(listenerClazz.getValue())){
+              listenerClasses.add(listenerClazz.getValue());
             }
           }
         }
@@ -99,16 +108,21 @@ public class BackgroundTasksModule extends AbstractModule {
         return  listenerClasses;
       }
 
-      private Class<? extends AsyncEvent> getListenerEventClass(Listener listener) {
-        Type[] paramTypes = listener.getListenerClass().getGenericInterfaces();
+      private Class<? extends AsyncEvent> getListenerEventClass(ListenerClazz listenerClazz) {
+        Type[] paramTypes = listenerClazz.getValue().getGenericInterfaces();
 
         ParameterizedType listenerType = null;
         for(Type type : paramTypes){
-          if(((ParameterizedType) type).getRawType().equals(AsyncEventListener.class)){
+          if(type instanceof ParameterizedType &&  ((ParameterizedType) type).getRawType().equals(AsyncEventListener.class)){
             listenerType = (ParameterizedType) type;
           }
         }
-        return (Class<? extends AsyncEvent>) listenerType.getActualTypeArguments()[0]; //0 because we have only 1 generic type for listeners
+
+        if(listenerType != null){
+          return (Class<? extends AsyncEvent>) listenerType.getActualTypeArguments()[0]; //0 because we have only 1 generic type for listeners
+        }
+
+        return null;
       }
     };
   }

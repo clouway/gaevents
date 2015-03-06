@@ -2,6 +2,7 @@ package com.clouway.asynctaskscheduler.gae;
 
 import com.clouway.asynctaskscheduler.common.ActionEvent;
 import com.clouway.asynctaskscheduler.common.IndexingListener;
+import com.clouway.asynctaskscheduler.common.MultyInterfaceListener;
 import com.clouway.asynctaskscheduler.common.TestEventListener;
 import com.clouway.asynctaskscheduler.spi.AsyncEventBusBinder;
 import com.clouway.asynctaskscheduler.spi.AsyncEventListenersFactory;
@@ -29,14 +30,14 @@ public class AsyncEventListenersFactoryProviderTest {
       @Override
       protected void configure() {
         new AsyncEventBusBinder(binder())
-                .addBinding(IndexingListener.class);
+                .registerListener(IndexingListener.class);
 
       }
     }, new AbstractModule() {
       @Override
       protected void configure() {
         new AsyncEventBusBinder(binder())
-                .addBinding(TestEventListener.class);
+                .registerListener(TestEventListener.class);
       }
     });
 
@@ -65,15 +66,32 @@ public class AsyncEventListenersFactoryProviderTest {
       @Override
       protected void configure() {
         new AsyncEventBusBinder(binder())
-                .addBinding(IndexingListener.class)
-                .addBinding(TestEventListener.class)
-                .addBinding(TestEventListener.class)
-                .addBinding(TestEventListener.class);
+                .registerListener(IndexingListener.class)
+                .registerListener(TestEventListener.class)
+                .registerListener(TestEventListener.class)
+                .registerListener(TestEventListener.class);
       }
     });
 
     listenersFactory = injector.getProvider(AsyncEventListenersFactory.class).get();
 
     assertThat(listenersFactory.getListenerClasses(ActionEvent.class).size(), is(2));
+  }
+
+  @Test
+  public void pretendCorrectnessIfListenerImplementsMoreThanOneInterface() throws Exception {
+    Injector injector = Guice.createInjector(new BackgroundTasksModule(), new AbstractModule() {
+      @Override
+      protected void configure() {
+        new AsyncEventBusBinder(binder())
+                .registerListener(IndexingListener.class)
+                .registerListener(TestEventListener.class)
+                .registerListener(MultyInterfaceListener.class);
+      }
+    });
+
+    listenersFactory = injector.getProvider(AsyncEventListenersFactory.class).get();
+
+    assertThat(listenersFactory.getListenerClasses(ActionEvent.class).size(), is(3));
   }
 }

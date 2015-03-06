@@ -7,20 +7,20 @@ import com.google.inject.multibindings.Multibinder;
  * @author Tsony Tsonev (tsony.tsonev@clouway.com)
  */
 public class AsyncEventBusBinder {
-  private Multibinder<Listener> binder;
+  private Multibinder<ListenerClazz> binder;
 
-  public interface Listener{
-    Class<? extends AsyncEventListener> getListenerClass();
+  public interface ListenerClazz {
+    Class<? extends AsyncEventListener> getValue();
   }
 
   public AsyncEventBusBinder(Binder binder) {
-     this.binder = Multibinder.newSetBinder(binder, Listener.class);
+     this.binder = Multibinder.newSetBinder(binder, ListenerClazz.class);
   }
 
-  public AsyncEventBusBinder addBinding(final Class<? extends AsyncEventListener> listenerClass){
-    binder.addBinding().toInstance(new Listener() {
+  public AsyncEventBusBinder registerListener(final Class<? extends AsyncEventListener> listenerClass){
+    binder.addBinding().toInstance(new ListenerClazz() {
       @Override
-      public Class<? extends AsyncEventListener> getListenerClass() {
+      public Class<? extends AsyncEventListener> getValue() {
         return listenerClass;
       }
     });
