@@ -56,14 +56,6 @@ public class RoutingEventDispatcherTest {
   TestEventListener testEventListener = new TestEventListener();
   private AsyncEventListenersFactory listenersFactory = new AsyncEventListenersFactory() {
     @Override
-    public List<AsyncEventListener> create(Class<? extends AsyncEvent> eventClass) {
-      List<AsyncEventListener> listeners = new ArrayList<AsyncEventListener>();
-      listeners.add(indexingListener);
-      listeners.add(testEventListener);
-      return listeners;
-    }
-
-    @Override
     public AsyncEventListener createListener(Class<? extends AsyncEvent> eventClass, String eventListenerClassName) {
       return testEventListener;
     }
@@ -124,12 +116,6 @@ public class RoutingEventDispatcherTest {
   @Test
   public void dispatchAsyncEventInSameTaskQueueIfNoListeners() throws Exception {
     listenersFactory = new AsyncEventListenersFactory() {
-      @Override
-      public List<AsyncEventListener> create(Class<? extends AsyncEvent> eventClass) {
-        //no listeners for the event, as the test description says
-        return Lists.newArrayList();
-      }
-
       @Override
       public AsyncEventListener createListener(Class<? extends AsyncEvent> eventClass, String eventListenerClassName) {
         return null;

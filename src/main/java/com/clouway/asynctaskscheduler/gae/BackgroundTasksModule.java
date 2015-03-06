@@ -1,13 +1,15 @@
 package com.clouway.asynctaskscheduler.gae;
 
 import com.clouway.asynctaskscheduler.spi.*;
+import com.clouway.asynctaskscheduler.spi.AsyncEventBusBinder.Listener;
 import com.google.common.collect.Lists;
 import com.google.inject.*;
 import com.google.inject.servlet.ServletModule;
 
-import java.util.ArrayList;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 
 /**
@@ -79,25 +81,34 @@ public class BackgroundTasksModule extends AbstractModule {
 
       @Override
       public List<Class<? extends AsyncEventListener>> getListenerClasses(Class<? extends AsyncEvent> eventClass) {
-        TypeLiteral<Map<Class<? extends AsyncEvent>, List<Class<? extends AsyncEventListener>>>> mapOfEventListeners = new TypeLiteral<Map<Class<? extends AsyncEvent>, List<Class<? extends AsyncEventListener>>>>() {};
-        Map<Class<? extends AsyncEvent>, List<Class<? extends AsyncEventListener>>> map;
-        map = injector.getInstance(Key.get(mapOfEventListeners));
+        TypeLiteral<Set<Listener>> listenersKey = new TypeLiteral<Set<Listener>>() {};
+        Set<Listener> listeners = injector.getInstance(Key.get(listenersKey));
 
-        return  map.get(eventClass);
-      }
+        List<Class<? extends AsyncEventListener>> listenerClasses = Lists.newArrayList();
 
-      @Override
-      public List<AsyncEventListener> create(Class<? extends AsyncEvent> eventClass) {
-        ArrayList<AsyncEventListener> listeners = Lists.newArrayList();
+        for (Listener listener : listeners){
+          Class<? extends AsyncEvent> genericEventClass = getListenerEventClass(listener);
 
-        List<Class<? extends AsyncEventListener>> listenerClassList = getListenerClasses(eventClass);
-        if (listenerClassList != null) {
-          for (Class<? extends AsyncEventListener> listenerClass : listenerClassList) {
-            AsyncEventListener listener = injector.getInstance(listenerClass);
-            listeners.add(listener);
+          if (genericEventClass.equals(eventClass)){
+            if (!listenerClasses.contains(listener.getListenerClass())){
+              listenerClasses.add(listener.getListenerClass());
+            }
           }
         }
-        return listeners;
+
+        return  listenerClasses;
+      }
+
+      private Class<? extends AsyncEvent> getListenerEventClass(Listener listener) {
+        Type[] paramTypes = listener.getListenerClass().getGenericInterfaces();
+
+        ParameterizedType listenerType = null;
+        for(Type type : paramTypes){
+          if(((ParameterizedType) type).getRawType().equals(AsyncEventListener.class)){
+            listenerType = (ParameterizedType) type;
+          }
+        }
+        return (Class<? extends AsyncEvent>) listenerType.getActualTypeArguments()[0]; //0 because we have only 1 generic type for listeners
       }
     };
   }

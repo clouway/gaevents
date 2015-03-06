@@ -162,7 +162,7 @@ public class RoutingEventDispatcher {
       if (txn != null) {
         txn.rollback();
       }
-      throw new RuntimeException();
+      throw new RuntimeException(e);
     }
   }
 
