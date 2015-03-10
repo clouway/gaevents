@@ -4,6 +4,7 @@ import com.clouway.asynctaskscheduler.spi.*;
 import com.google.appengine.api.datastore.DatastoreService;
 import com.google.appengine.api.datastore.DatastoreServiceFactory;
 import com.google.appengine.api.datastore.Transaction;
+import com.google.appengine.api.datastore.TransactionOptions;
 import com.google.common.base.Strings;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
@@ -13,12 +14,13 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.logging.Logger;
 
 /**
  * @author Mihail Lesikov (mlesikov@gmail.com)
  */
 public class RoutingEventDispatcher {
-
+  private static final Logger log = Logger.getLogger(RoutingEventDispatcher.class.getName());
 
   private final EventTransport eventTransport;
   private final AsyncEventHandlerFactory handlerFactory;
@@ -49,6 +51,7 @@ public class RoutingEventDispatcher {
 
       Class<? extends AsyncEventHandler> evenHandlerClass = event.getAssociatedHandlerClass();
 
+      log.info("Dispatching Handler And Listeners in DataStore Transaction For Event: " + event.getClass());
       dispatchHandlerAndListeners(event, evenHandlerClass);
     }
   }
@@ -67,6 +70,7 @@ public class RoutingEventDispatcher {
 
       AsyncEventListener<AsyncEvent> listener  = listenersFactory.createListener(event.getClass(), listenerClassName);
 
+      log.info("Dispatching Listener: " + listener.getClass());
       listener.onEvent(event);
     }
   }
@@ -85,6 +89,7 @@ public class RoutingEventDispatcher {
 
       AsyncEventHandler handler = handlerFactory.create(event.getAssociatedHandlerClass());
 
+      log.info("Dispatching Handler: " + event.getAssociatedHandlerClass());
       event.dispatch(handler);
     }
   }
@@ -138,7 +143,7 @@ public class RoutingEventDispatcher {
 
     Transaction txn = null;
     try {
-      txn = ds.beginTransaction();
+
 
       List<Class<? extends AsyncEventListener>> listeners  = listenersFactory.getListenerClasses(event.getClass());
 
@@ -146,6 +151,10 @@ public class RoutingEventDispatcher {
         AsyncEventHandler handler = handlerFactory.create(evenHandlerClass);
         event.dispatch(handler);
       } else {
+        TransactionOptions options = TransactionOptions.Builder.withXG(true);
+        txn = ds.beginTransaction(options);
+
+
         AsyncTaskScheduler asyncTaskScheduler = taskScheduler.get();
 
         asyncTaskScheduler.add(AsyncTaskOptions.eventWithHandler(event, evenHandlerClass));
@@ -155,11 +164,14 @@ public class RoutingEventDispatcher {
         }
 
         asyncTaskScheduler.now();
+        log.info("Committing transaction... app-id: " + txn.getApp() + " txn-id: " + txn.getId() + "txn-active: " + txn.isActive());
+        txn.commit();
+        log.info("Transaction state - app-id: " + txn.getApp() + " txn-id: " + txn.getId() + "txn-active: " + txn.isActive());
       }
 
-      txn.commit();
     } catch (Exception e) {
-      if (txn != null) {
+      if (txn != null && txn.isActive()) {
+        log.info("Rolling back active transaction... app-id: " + txn.getApp() + " txn-id: " + txn.getId());
         txn.rollback();
       }
       throw new RuntimeException(e);

@@ -7,12 +7,14 @@ import com.google.inject.Inject;
 import com.google.inject.Injector;
 
 import java.util.Map;
+import java.util.logging.Logger;
 
 /**
  * @author Mihail Lesikov (mlesikov@gmail.com)
  */
 public class RoutingTaskDispatcher {
 
+  private static final Logger log = Logger.getLogger(RoutingTaskDispatcher.class.getName());
   private final Injector injector;
 
   @Inject
@@ -39,6 +41,7 @@ public class RoutingTaskDispatcher {
 
       AsyncTask task = (AsyncTask) object;
 
+      log.info("Executing Async Task: " + task.getClass());
       task.execute(new AsyncTaskParams(params));
 
     } else {

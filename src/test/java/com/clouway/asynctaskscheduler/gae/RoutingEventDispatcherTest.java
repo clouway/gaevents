@@ -13,6 +13,7 @@ import com.clouway.asynctaskscheduler.spi.AsyncEventListenersFactory;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.dev.LocalTaskQueue;
 import com.google.appengine.api.taskqueue.dev.QueueStateInfo;
+import com.google.appengine.tools.development.testing.LocalDatastoreServiceTestConfig;
 import com.google.appengine.tools.development.testing.LocalServiceTestHelper;
 import com.google.appengine.tools.development.testing.LocalTaskQueueTestConfig;
 import com.google.common.collect.Lists;
@@ -79,7 +80,8 @@ public class RoutingEventDispatcherTest {
   public void setUp() throws Exception {
     LocalTaskQueueTestConfig localTaskQueueTestConfig = new LocalTaskQueueTestConfig();
     localTaskQueueTestConfig.setQueueXmlPath("src/test/java/queue.xml");
-    helper = new LocalServiceTestHelper(localTaskQueueTestConfig);
+    //todo make datastoreRule
+    helper = new LocalServiceTestHelper(localTaskQueueTestConfig,new LocalDatastoreServiceTestConfig().setApplyAllHighRepJobPolicy().setStoreDelayMs(0));
     helper.setUp();
     Injector injector = Guice.createInjector(new BackgroundTasksModule() {
       @Override
@@ -178,6 +180,7 @@ public class RoutingEventDispatcherTest {
     //two task queues fired because the event has 2 listeners
     assertThat(qsi.getCountTasks(), is(3));
     //each fired task queue contains the event class and the id of the listener to be executed
+    //this test may fail from time to time due to tasks in the queue not executed in the given order, soo only the ids are wrong, happens very rarely
     assertParams(qsi.getTaskInfo().get(0).getBody(), TaskQueueAsyncTaskScheduler.EVENT, event.getClass().getCanonicalName());//get canonical name because the event class can be only retrieved with the full packaging
     assertParams(qsi.getTaskInfo().get(1).getBody(), TaskQueueAsyncTaskScheduler.LISTENER, indexingListener.getClass().getSimpleName());
     assertParams(qsi.getTaskInfo().get(2).getBody(), TaskQueueAsyncTaskScheduler.LISTENER, testEventListener.getClass().getSimpleName());
