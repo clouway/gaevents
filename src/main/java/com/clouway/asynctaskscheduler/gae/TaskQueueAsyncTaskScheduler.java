@@ -4,6 +4,7 @@ import com.clouway.asynctaskscheduler.spi.AsyncEvent;
 import com.clouway.asynctaskscheduler.spi.AsyncTaskOptions;
 import com.clouway.asynctaskscheduler.spi.AsyncTaskScheduler;
 import com.clouway.asynctaskscheduler.spi.EventTransport;
+import com.clouway.asynctaskscheduler.spi.HeadersProvider;
 import com.google.appengine.api.taskqueue.TaskAlreadyExistsException;
 import com.google.appengine.api.taskqueue.TaskOptions;
 import com.google.appengine.api.taskqueue.TransientFailureException;
@@ -62,14 +63,19 @@ public class TaskQueueAsyncTaskScheduler implements AsyncTaskScheduler {
 
   private final EventTransport eventTransport;
   private final CommonParamBinder commonParamBinder;
-  private TaskApplier taskApplier;
+  private final TaskApplier taskApplier;
+  private final HeadersProvider headersProvider;
 
 
   @Inject
-  public TaskQueueAsyncTaskScheduler(EventTransport eventTransport, CommonParamBinder commonParamBinder, TaskApplier taskApplier) {
+  public TaskQueueAsyncTaskScheduler(EventTransport eventTransport,
+                                     CommonParamBinder commonParamBinder,
+                                     TaskApplier taskApplier,
+                                     HeadersProvider headersProvider) {
     this.eventTransport = eventTransport;
     this.commonParamBinder = commonParamBinder;
     this.taskApplier = taskApplier;
+    this.headersProvider = headersProvider;
     this.taskOptions = Lists.newArrayList();
   }
 
@@ -202,6 +208,8 @@ public class TaskQueueAsyncTaskScheduler implements AsyncTaskScheduler {
 
   private void addTaskToTheQueue(AsyncTaskOptions taskOptions, String queue, TaskOptions task) {
     try {
+
+      task.headers(headersProvider.get());
 
       taskApplier.apply(task, queue, taskOptions.isTransactionless());
 
