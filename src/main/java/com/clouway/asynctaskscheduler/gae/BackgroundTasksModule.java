@@ -38,10 +38,15 @@ public class BackgroundTasksModule extends AbstractModule {
   protected void configure() {
     install(servletsModule);
     bind(EventTransport.class).to(getEventTransport()).in(Singleton.class);
+    bind(HeadersProvider.class).to(getHeadersProvider()).in(Singleton.class);
   }
 
   protected Class<? extends EventTransport> getEventTransport() {
     return GsonEventTransport.class;
+  }
+
+  protected Class<? extends HeadersProvider> getHeadersProvider() {
+    return DefaultHeadersProvider.class;
   }
 
   @Provides
@@ -50,8 +55,8 @@ public class BackgroundTasksModule extends AbstractModule {
   }
 
   @Provides
-  public AsyncTaskScheduler getAsyncTaskScheduler(EventTransport eventTransport, Provider<CommonParamBinder> commonParamBinderProvider, TaskApplier taskApplier) {
-    return new TaskQueueAsyncTaskScheduler(eventTransport, commonParamBinderProvider.get(), taskApplier);
+  public AsyncTaskScheduler getAsyncTaskScheduler(EventTransport eventTransport, Provider<CommonParamBinder> commonParamBinderProvider, TaskApplier taskApplier, HeadersProvider headersProvider) {
+    return new TaskQueueAsyncTaskScheduler(eventTransport, commonParamBinderProvider.get(), taskApplier, headersProvider);
   }
 
   @Override

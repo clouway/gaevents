@@ -3,6 +3,7 @@ package com.clouway.asynctaskscheduler.gae;
 import com.clouway.asynctaskscheduler.common.ActionEvent;
 import com.clouway.asynctaskscheduler.common.ArgumentCaptor;
 import com.clouway.asynctaskscheduler.spi.AsyncTaskOptions;
+import com.clouway.asynctaskscheduler.spi.HeadersProvider;
 import com.clouway.asynctaskscheduler.util.FakeCommonParamBinder;
 import com.clouway.asynctaskscheduler.util.FakeRequestScopeModule;
 import com.clouway.asynctaskscheduler.util.SimpleScope;
@@ -28,6 +29,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.HashMap;
 
 import static org.junit.Assert.assertThat;
 
@@ -54,7 +56,11 @@ public class TaskQueueAsyncTaskSchedulerErrorHandlingTest {
   private FakeCommonParamBinder fakeBinder;
 
   @Mock
-  TaskApplier taskApplier;
+  private TaskApplier taskApplier;
+
+  @Mock
+  private HeadersProvider headersProvider;
+
   private final ArgumentCaptor<TaskOptions> task = new ArgumentCaptor<TaskOptions>();
   private final ArgumentCaptor<String> queueName = new ArgumentCaptor<String>();
   private final ArgumentCaptor<Boolean> transactionless = new ArgumentCaptor<Boolean>();
@@ -75,6 +81,7 @@ public class TaskQueueAsyncTaskSchedulerErrorHandlingTest {
                       protected void configure() {
                         bind(CommonParamBinder.class).toInstance(fakeBinder);
                         bind(TaskApplier.class).toInstance(taskApplier);
+                        bind(HeadersProvider.class).toInstance(headersProvider);
                       }
 
                     })
@@ -97,6 +104,9 @@ public class TaskQueueAsyncTaskSchedulerErrorHandlingTest {
     fakeBinder.pretendCommonParamsIs("param2", "value2");
 
     context.checking(new Expectations() {{
+      oneOf(headersProvider).get();
+      will(returnValue(new HashMap<String, String>()));
+
       oneOf(taskApplier).apply(with(task), with(queueName), with(transactionless));
       will(throwException(new TaskAlreadyExistsException("")));
     }});
@@ -110,6 +120,9 @@ public class TaskQueueAsyncTaskSchedulerErrorHandlingTest {
     fakeBinder.pretendCommonParamsIs("param2", "value2");
 
     context.checking(new Expectations() {{
+      oneOf(headersProvider).get();
+      will(returnValue(new HashMap<String, String>()));
+
       oneOf(taskApplier).apply(with(task), with(queueName), with(transactionless));
       will(throwException(new TransientFailureException("")));
 
@@ -121,5 +134,26 @@ public class TaskQueueAsyncTaskSchedulerErrorHandlingTest {
 
     assertThat(queueName.getValue(), CoreMatchers.is(CoreMatchers.equalTo("")));
     assertThat(transactionless.getValue(), CoreMatchers.is(CoreMatchers.equalTo(false)));
+  }
+
+  @Test
+  public void addProvidedHeadersToTaskOptions() throws Exception {
+
+    final HashMap<String, String> expectedHeaders = new HashMap<String, String>() {{put("Some-Header", "Header Value");}};
+
+    final TaskOptions expectedTaskOptions = TaskOptions.Builder
+            .withUrl("/worker/taskQueue")
+            .headers(expectedHeaders)
+            .param("event", "com.clouway.asynctaskscheduler.common.ActionEvent")
+            .param("eventJson", "%7B%22message%22%3A%22test+message%22%7D");
+
+    context.checking(new Expectations() {{
+      oneOf(headersProvider).get();
+      will(returnValue(expectedHeaders));
+
+      oneOf(taskApplier).apply(with(expectedTaskOptions), with(queueName), with(transactionless));
+    }});
+
+    taskScheduler.add(AsyncTaskOptions.event(new ActionEvent("test message"))).now();
   }
 }
