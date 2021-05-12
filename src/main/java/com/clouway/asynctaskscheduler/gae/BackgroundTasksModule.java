@@ -4,6 +4,7 @@ import com.clouway.asynctaskscheduler.spi.*;
 import com.clouway.asynctaskscheduler.spi.AsyncEventBusBinder.ListenerClazz;
 import com.google.common.collect.Lists;
 import com.google.inject.*;
+import com.google.inject.Module;
 import com.google.inject.servlet.ServletModule;
 
 import java.lang.reflect.ParameterizedType;

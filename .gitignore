@@ -1,3 +1,10 @@
+*.iml
+.shelf
 *.ipr
 *.iws
-*.iml
+target
+## Directory-based project format:
+.idea/
+/out/
+build
+.gradle
